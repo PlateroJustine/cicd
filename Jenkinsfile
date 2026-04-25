@@ -9,6 +9,61 @@ pipeline {
     }
 
     stages {
+        stage('Checkout SCM') {
+            steps {
+                echo "Checking out source code..."
+                git branch: "${GIT_BRANCH}",
+                    url: "${GIT_REPO_URL}",
+                    credentialsId: "${GIT_CREDENTIALS_ID}"
+            }
+        }
+
+        stage('Setup Python') {
+            steps {
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Run Tests') {
+            steps {
+                sh '''
+                . venv/bin/activate
+                python test.py
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                rsync -av --delete ./ ${DEPLOY}/
+                sudo chown -R www-data:www-data ${DEPLOY}
+                sudo chmod -R 755 ${DEPLOY}
+                '''
+            }
+        }
+    }
+
+    post {
+        success { echo "CI/CD SUCCESS ✔ Deployment completed" }
+        failure { echo "CI/CD FAILED ❌ Check logs" }
+        always { cleanWs() }
+    }
+}pipeline {
+    agent any
+
+    environment {
+        GIT_REPO_URL = 'https://github.com/PlateroJustine/cicd.git'
+        GIT_CREDENTIALS_ID = 'github-pat'
+        GIT_BRANCH = 'main'
+        DEPLOY = '/var/www/html'
+    }
+
+    stages {
         stage('Checkout') {
             steps {
                 git branch: "${GIT_BRANCH}",
