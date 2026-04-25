@@ -11,7 +11,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/YOUR_USERNAME/cicd.git',
+                    url: 'https://github.com/PlateroJustine/cicd.git',
                     credentialsId: 'github-pat'
         	}
     	}
