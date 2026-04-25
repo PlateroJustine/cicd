@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         GIT_REPO_URL = 'https://github.com/PlateroJustine/cicd.git'
-        GIT_CREDENTIALS_ID = 'github-pat'
+		GIT_CREDENTIALS_ID = 'github-pat'
         GIT_BRANCH = 'main'
         DEPLOY = '/var/www/html'
     }
@@ -11,17 +11,13 @@ pipeline {
     stages {
 
         stage('Checkout SCM') {
-            steps {
-                echo "Checking out source code..."
-                checkout([$class: 'GitSCM',
-                    branches: [[name: "*/${env.GIT_BRANCH}"]],
-                    userRemoteConfigs: [[
-                        url: "${env.GIT_REPO_URL}",
-                        credentialsId: "${env.GIT_CREDENTIALS_ID}"
-                    ]]
-                ])
-            }
-        }
+    steps {
+        echo "Checking out source code..."
+        git branch: 'main',
+            url: 'https://github.com/PlateroJustine/cicd.git',
+            credentialsId: 'github-pat'
+    }
+}
 
         stage('Setup Python Environment') {
             steps {
