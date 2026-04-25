@@ -2,6 +2,76 @@ pipeline {
     agent any
 
     environment {
+        GIT_REPO_URL = 'https://github.com/PlateroJustine/cicd.git'
+        GIT_CREDENTIALS_ID = 'github-pat'
+        GIT_BRANCH = 'main'
+        DEPLOY = '/var/www/html'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: "${GIT_BRANCH}",
+                    url: "${GIT_REPO_URL}",
+                    credentialsId: "${GIT_CREDENTIALS_ID}"
+            }
+        }
+
+        stage('Setup Python') {
+            steps {
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                '''
+            }
+        }
+
+        stage('Start Apache') {
+            steps {
+                sh 'sudo systemctl start apache2'
+            }
+        }
+
+        stage('Run Selenium Test') {
+            steps {
+                sh '''
+                Xvfb :99 -screen 0 1024x768x16 &
+                export DISPLAY=:99
+                sleep 3
+                . venv/bin/activate
+                python test.py
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                rsync -av --delete ./ ${DEPLOY}/
+                sudo chown -R www-data:www-data ${DEPLOY}
+                sudo chmod -R 755 ${DEPLOY}
+                '''
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "CI/CD SUCCESS ✔ Deployment completed"
+        }
+        failure {
+            echo "CI/CD FAILED ❌ Check logs"
+        }
+        always {
+            cleanWs()
+        }
+    }
+}pipeline {
+    agent any
+
+    environment {
         JAVA_HOME = "/opt/java17"
         DEPLOY = "/var/www/html"
         GIT_REPO_URL = 'https://github.com/PlateroJustine/cicd.git'
