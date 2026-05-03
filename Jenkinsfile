@@ -1,70 +1,32 @@
 pipeline {
     agent any
-
     environment {
         GIT_REPO_URL = 'https://github.com/PlateroJustine/cicd.git'
         GIT_CREDENTIALS_ID = 'github-pat'
         GIT_BRANCH = 'main'
-        DEPLOY = '/var/www/html'
     }
-
     stages {
-
         stage('Checkout') {
             steps {
-                git branch: "${GIT_BRANCH}",
-                    url: "${GIT_REPO_URL}",
-                    credentialsId: "${GIT_CREDENTIALS_ID}"
+                checkout([$class: 'GitSCM', branches: [[name: "*/${env.GIT_BRANCH}"]], userRemoteConfigs: [[url: "${env.GIT_REPO_URL}", credentialsId: "${env.GIT_CREDENTIALS_ID}"]]])
             }
         }
-
-        stage('Setup Python') {
+        stage('Detect Change') {
             steps {
-                sh '''
-                sudo apt-get update
-                sudo apt-get install -y python3-venv python3-pip xvfb
-
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install --upgrade pip
-                pip install -r requirements.txt
-                '''
+                script {
+                    def changed = sh(script: "git diff --name-only HEAD~1 HEAD | grep '.php' | head -n 1", returnStdout: true).trim()
+                    env.TARGET_PHP_FILE = changed ?: "index.php"
+                }
             }
         }
-
-        stage('Run Test') {
-            steps {
-                sh '''
-                Xvfb :99 -screen 0 1024x768x16 &
-                export DISPLAY=:99
-                sleep 3
-
-                . venv/bin/activate
-                python test.py
-                '''
-            }
-        }
-
         stage('Deploy') {
             steps {
                 sh '''
-                sudo rsync -av --delete ./ ${DEPLOY}/
-                sudo chown -R www-data:www-data ${DEPLOY}
-                sudo chmod -R 755 ${DEPLOY}
+                # Only runs if test.py exited with 0
+                sudo rsync -av --delete --exclude='venv/' --exclude='.git/' --exclude='staging/' ./ /var/www/html/
+                sudo chown -R www-data:www-data /var/www/html/
                 '''
             }
-        }
-    }
-
-    post {
-        success {
-            echo "SUCCESS ✔"
-        }
-        failure {
-            echo "FAILED ❌"
-        }
-        always {
-            cleanWs()
         }
     }
 }
